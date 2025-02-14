@@ -105,7 +105,7 @@ MetadataCleaner/
 │── requirements.txt   # Python dependencies
 │── templates/
 │   └── upload.html    # Web UI template
-│── screenshot.png     # (Optional) Screenshot for README
+│── screenshot.png     # Screenshot for README
 ```
 
 ---
