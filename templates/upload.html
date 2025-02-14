@@ -1,0 +1,396 @@
+<!--
+Metadata Cleaner
+Version: 1.0
+Author: Javier Ripoll
+Website: https://javierripoll.es
+Contact: javier@javierripoll.es
+Date: 2025-02-14
+
+Description:
+This is the frontend for Metadata Cleaner, a Flask-based application
+that allows users to upload files, extract metadata,
+and remove metadata from supported file types using ExifTool.
+-->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{page_title}}</title>
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .dropzone {
+            border: 2px dashed #007bff;
+            padding: 30px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border-radius: 8px;
+        }
+
+            .dropzone:hover {
+                background: #e9ecef;
+            }
+
+        .file-list {
+            margin-top: 15px;
+            padding: 5px;
+            border-radius: 5px;
+            background: #f8f9fa;
+            display: none;
+            font-size: 12px;
+        }
+
+        .file-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-list li {
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        /* Estilo para resaltar cada archivo en la lista */
+        .file-item {
+            background-color: #e9ecef; /* Fondo más oscuro para el archivo */
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+        }
+        /* Estilo para el hash */
+        .file-hash {
+            font-size: 12px;
+            color: #495057; /* Texto oscuro */
+            display: block;
+            margin-top: 5px;
+        }
+        /* Estilos de los metadatos */
+        .metadata {
+            background-color: #f8f9fa; /* Fondo claro */
+            padding: 8px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-size: 12px;
+            word-wrap: break-word;
+        }
+
+        .metadata-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+            .metadata-list li {
+                padding: 4px 0;
+                border-bottom: 1px solid #e0e0e0;
+                color: #343a40; /* Texto más oscuro */
+            }
+
+                .metadata-list li:last-child {
+                    border-bottom: none;
+                }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 20px;
+            color: #666;
+        }
+
+        /* Button */
+        .btn-primary {
+            width: 100%;
+            font-weight: bold;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+
+        .btn-primary:disabled {
+            background-color: #b0c4de;
+            cursor: not-allowed;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card shadow-sm border-0 p-4">
+            <div class="text-center">
+                <h2 class="text-primary fw-bold">{{ page_title }}</h2>
+                <p class="text-muted mt-3">
+                    This application securely removes metadata from your files, helping to protect your privacy
+                    and reduce the risk of unintentional information disclosure.
+                    <br><b class="text-dark">
+                        Files are processed only during the extraction and cleaning process
+                        and are immediately deleted afterward.
+                    </b>
+                </p>
+                <p class="text-muted mt-2">
+                    <b>Maximum file size:</b> {{ max_file_size_mb }} MB |
+                    <b>Maximum files per upload:</b> {{ max_files }}
+                </p>
+            </div>
+        </div>
+        <!-- Dropzone for file upload -->
+        <form action="/process_files" method="post" enctype="multipart/form-data" id="uploadForm">
+            <div id="dropzone" class="dropzone">
+                <p>Drag and drop files here or click to select them</p>
+                <input type="file" name="files" id="fileInput" multiple hidden>
+            </div>
+            <input type="submit" value="Clean Metadata and Download" class="btn btn-primary mt-3" disabled>
+        </form>
+
+        <!-- Footer -->
+        <p class="footer">
+            © 2025 Metadata Cleaner - Open Source Project.
+            <br>This service removes metadata without storing copies on the server.
+            <br>Supported file types: <span id="allowedExtensions">{{ allowed_extensions }}</span>
+            <br><b>Developed as an open-source tool to enhance file privacy.</b>
+            <br>For more information, visit the project's <a href="https://github.com/ripollete/MetadataCleaner">GitHub repository</a>.
+            <br><b>{{ support_message }}</b>
+        </p>
+
+
+        <!-- File list -->
+        <div class="file-list" id="fileList">
+            <h6 class="text-center">Selected files</h6>
+            <ul id="fileItems"></ul>
+        </div>
+    </div>
+
+    <script>
+    const allowedExtensions = {{ allowed_extensions|tojson|safe }};
+    const max_file_size_mb = {{ max_file_size_mb }};
+    const max_files = {{ max_files }};
+    const uploadButton = document.querySelector("input[type='submit']");
+    const fileInput = document.getElementById("fileInput");
+    const fileList = document.getElementById("fileList");
+    const fileItems = document.getElementById("fileItems");
+
+    uploadButton.disabled = true;
+
+    document.getElementById("dropzone").addEventListener("click", function () {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener("change", function (event) {
+        validateFiles(event.target.files);
+    });
+
+    document.getElementById("dropzone").addEventListener("dragover", function (event) {
+        event.preventDefault();
+        this.style.background = "#e9ecef";
+    });
+
+    document.getElementById("dropzone").addEventListener("dragleave", function (event) {
+        event.preventDefault();
+        this.style.background = "#f8f9fa";
+    });
+
+    document.getElementById("dropzone").addEventListener("drop", function (event) {
+        event.preventDefault();
+        validateFiles(event.dataTransfer.files);
+    });
+
+    function validateFiles(newFiles) {
+        let dataTransfer = new DataTransfer();
+        let errorMessages = [];
+
+
+        for (let file of fileInput.files) {
+            dataTransfer.items.add(file);
+        }
+
+        for (let file of newFiles) {
+            if (dataTransfer.files.length >= max_files) {
+                errorMessages.push(`You cannot upload more than ${max_files} files.`);
+                break;
+            }
+
+            let fileExtension = file.name.split('.').pop().toLowerCase();
+            let fileSizeMB = file.size / (1024 * 1024);
+
+            if (!allowedExtensions.includes(fileExtension)) {
+                errorMessages.push(`${file.name} is not allowed.`);
+                continue;
+            }
+
+            if (fileSizeMB > max_file_size_mb) {
+                errorMessages.push(`${file.name} exceeds the ${max_file_size_mb}MB.`);
+                continue;
+            }
+
+            dataTransfer.items.add(file);
+        }
+
+        if (errorMessages.length > 0) {
+            alert(errorMessages.join("\n"));
+        }
+
+        fileInput.files = dataTransfer.files;
+        updateFileList();
+    }
+
+        async function updateFileList() {
+            fileItems.innerHTML = "";
+            let files = fileInput.files;
+
+            if (files.length === 0) {
+                uploadButton.disabled = true;
+                fileList.style.display = "none";
+                return;
+            }
+
+            uploadButton.disabled = false;
+            fileList.style.display = "block";
+
+            for (let file of files) {
+                let fileSizeMB = file.size / (1024 * 1024);
+                let hash = await calculateHash(file);
+
+                let listItem = document.createElement("li");
+                listItem.className = "file-item";
+                listItem.innerHTML = `
+            <b>${file.name}</b> (${fileSizeMB.toFixed(2)} MB)
+            <br> <span class="file-hash">SHA-256: ${hash}</span>
+        `;
+
+                fileItems.appendChild(listItem);
+
+                obtenerMetadatos(file, listItem);
+            }
+        }
+
+
+    async function obtenerMetadatos(file, listItem) {
+        let formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/get_metadata", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                let metadataDiv = document.createElement("div");
+                metadataDiv.className = "metadata";
+
+                if (Object.keys(data).length === 0) {
+                    metadataDiv.innerHTML = `<p class="text-muted">📄 No relevant metadata found.</p>`;
+                } else {
+                    let metadataHTML = `<p><b>Extracted Metadata:</b></p><ul class="metadata-list">`;
+                    for (let [key, value] of Object.entries(data)) {
+                        metadataHTML += `<li><b>${key}:</b> ${value}</li>`;
+                    }
+                    metadataHTML += "</ul>";
+                    metadataDiv.innerHTML = metadataHTML;
+                }
+
+                listItem.appendChild(metadataDiv);
+            })
+            .catch(error => console.error("Error retrieving metadata:", error));
+    }
+
+
+    async function calculateHash(file) {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function clearMetadata(event) {
+        event.preventDefault();
+
+        // Disable button to prevent multiple submissions
+        uploadButton.disabled = true;
+
+        let formData = new FormData();
+        for (let file of fileInput.files) {
+            formData.append("files", file);
+        }
+
+        fetch("/process_files", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("Download error.");
+            return response.blob().then(blob => ({ blob, response }));
+        })
+        .then(({ blob, response }) => {
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            a.href = url;
+
+            // Get the file name from the response
+            let filename = "clean_file";
+            let disposition = response.headers.get("Content-Disposition");
+            if (disposition && disposition.includes("filename=")) {
+                filename = disposition.split("filename=")[1].trim().replace(/"/g, '');
+            }
+
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            // **CLEAR FILE LIST AND INPUT AFTER DOWNLOAD**
+            setTimeout(() => clearInterface(), 500);
+        })
+            .catch(error => console.error("Error processing files:", error));
+    }
+
+    function clearInterface() {
+        fileInput.value = ""; // Reset file input
+        fileItems.innerHTML = ""; // Clear file list
+        fileList.style.display = "none"; // Hide file list
+        uploadButton.disabled = true; // Disable button
+    }
+
+    document.getElementById("uploadForm").addEventListener("submit", clearMetadata);
+    </script>
+
+
+</body>
+</html>
