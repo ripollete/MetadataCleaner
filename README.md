@@ -20,7 +20,7 @@ Metadata Cleaner is a Flask-based application that allows users to upload files,
 
 ### **1️⃣ Clone the Repository**  
 ```bash
-git clone https://github.com/yourusername/MetadataCleaner.git
+git clone https://github.com/ripollete/MetadataCleaner.git
 cd MetadataCleaner
 ```
 
