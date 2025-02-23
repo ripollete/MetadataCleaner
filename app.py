@@ -1,10 +1,10 @@
 ﻿""""" 
 Metadata Cleaner
-Version: 1.0
+Version: 1.1
 Author: Javier Ripoll
 Website: https://javierripoll.es
 Contact: javier@javierripoll.es
-Date: 2025-02-14
+Date: 2025-02-23
 
 Description:
 This Flask application allows users to upload files, extract metadata, 
@@ -96,7 +96,10 @@ def get_metadata():
             "Rotation", "SelectionDuration", "SelectionTime", "SourceImageHeight", 
             "SourceImageWidth", "TimeScale", "TrackCreateDate", "TrackDuration", 
             "TrackHeaderVersion", "TrackID", "TrackLayer", "TrackModifyDate", 
-            "TrackVolume", "VideoFrameRate", "XResolution", "YResolution"
+            "TrackVolume", "VideoFrameRate", "XResolution", "YResolution",
+            "BlueX", "BlueY", "GreenX", "GreenY", "RedX", "RedY", "WhitePointX", "WhitePointY",
+            "Language", "TaggedPDF","APP14Flags0", "APP14Flags1", "BitsPerSample", "ColorComponents", 
+            "ColorTransform", "DCTEncodeVersion", "EncodingProcess", "YCbCrSubSampling"
         }
 
         filtered_metadata = {k: v for k, v in metadata.items() if k not in excluded_metadata}
@@ -139,7 +142,7 @@ def process_files():
         file_path = os.path.join(upload_folder, file.filename)
         file.save(file_path)
 
-        subprocess.run(["exiftool", "-all=", "-overwrite_original", file_path])
+        subprocess.run(["exiftool", "-all=", "-ICC_Profile:all=", "-XMP:all=", "-IPTC:all=", "-overwrite_original", file_path])
 
         cleaned_files.append(file_path)
 
