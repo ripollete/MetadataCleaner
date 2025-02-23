@@ -1,10 +1,10 @@
 <!--
 Metadata Cleaner
-Version: 1.0
+Version: 1.1
 Author: Javier Ripoll
 Website: https://javierripoll.es
 Contact: javier@javierripoll.es
-Date: 2025-02-14
+Date: 2025-02-23
 
 Description:
 This is the frontend for Metadata Cleaner, a Flask-based application
@@ -215,7 +215,7 @@ and remove metadata from supported file types using ExifTool.
     });
 
     fileInput.addEventListener("change", function (event) {
-        validateFiles(event.target.files);
+        validateFiles(event.target.files,false);
     });
 
     document.getElementById("dropzone").addEventListener("dragover", function (event) {
@@ -230,16 +230,18 @@ and remove metadata from supported file types using ExifTool.
 
     document.getElementById("dropzone").addEventListener("drop", function (event) {
         event.preventDefault();
-        validateFiles(event.dataTransfer.files);
+        validateFiles(event.dataTransfer.files,true);
     });
 
-    function validateFiles(newFiles) {
+    function validateFiles(newFiles, isDragDrop = false) {
         let dataTransfer = new DataTransfer();
         let errorMessages = [];
 
-
-        for (let file of fileInput.files) {
-            dataTransfer.items.add(file);
+        // ONLY keep previous files if the action is a "drag & drop"
+        if (isDragDrop) {
+            for (let file of fileInput.files) {
+                dataTransfer.items.add(file);
+            }
         }
 
         for (let file of newFiles) {
